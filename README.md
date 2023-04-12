@@ -19,7 +19,7 @@ Here is a short outline of the steps taken by the script:
 
 1. Go through the .exp files and laser log files to make them into a usable format.
 2. Calculate the time offset between the laser and MS to detect where the samples are.
-3. Remove outliers and Substract background from analysis.
+3. Remove outliers and substract background from analysis.
 4. Perform a primary standard bracketing mass bias correction using NIST612.
 5. Calculate 'raw' $\delta ^{11}\mathrm{B}$, [B] and B/Ca.
 6. Calculate the inacurracy ($\Delta \delta ^{11} \mathrm{B}$) of three well studied carbonate standards, namely MACS-3, JCt and JCp. 
@@ -30,6 +30,6 @@ Here is a short outline of the steps taken by the script:
 
 The script is still undergoing constant improvements and feature additions.
 
-A full working example with selectect files can be found in `./example/` as a Jupyter Notebook.
+A full working example with selected files can be found in `./example/` as a Jupyter Notebook.
 
 If you want an interactive GUI for selecting the files, you need the `tkinter` package.
