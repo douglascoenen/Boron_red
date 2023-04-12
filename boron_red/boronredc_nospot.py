@@ -1004,17 +1004,13 @@ class Reduced:
                 # ax.scatter(mx[i], my[i], ec="k", s=ss[i]*2, alpha=0.6, label=stdfound[i])
                 # ax.errorbar(mx[i], my[i], my2se[i], mx2se[i], mec="k",
                             # fmt="o", label=stdfound[i])
-                
-                
-            # ax.scatter(mx, my)
-            # plt.title(fr"Regression ")
+            
             if ca9:
                 plt.xlabel(r"B/'Ca' ($^{11}$B/9.979)")
             else:
                 plt.xlabel(r"B/'Ca' ($^{11}$B/10.035)")
             plt.ylabel(r"$\delta ^{11}$B")
             plt.legend()
-            # print(asdasd)
             # Plot the data and interactively choose points
             _ = Cursor(ax, useblit=True, color="k")
             coord = plt.ginput(-1, timeout=-1)  # Graphical input
@@ -1035,7 +1031,6 @@ class Reduced:
             out = np.array(out)
         
             xy = np.delete(xy, ind, 0)  # Delete the outliers
-            # print(xy)
             xy2se = np.delete(xy2se, ind, 0) # Delete outliers in 2se array
             # Destack the arrays
             mxc = xy[:, 0]
