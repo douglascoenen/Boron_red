@@ -5,7 +5,7 @@
 
 If needs be, I can make the code less rigid to fit other machines. Just contact me.
 
-Methodology outlined in:
+Methodology originally outlined in:
 
 *Evans, Gerdes, Coenen, Marschall, & Mueller (2021) Accurate correction for the matrix 
 interference on laser ablation MC-ICPMS boron isotope measurements in CaCO3 and s
@@ -13,7 +13,8 @@ ilicate matrices. JAAS 36:1607.*
 
 (doi: 10.1039/d1ja00073j)
 
-This code stemmed from David Evans original version in Matlab: (https://github.com/dbjevans/LA_d11B)
+This code stemmed from David Evans original version in Matlab: (https://github.com/dbjevans/LA_d11B). Go check it out!
+Although these two script are using the same methodology, there lie a slight difference of less 0.1‰. 
 
 The Python version uses a OO approach, and is thus best used in an interactive environment (e.g. Jupyter Notebook, IPython console, ...)
 
