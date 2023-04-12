@@ -19,27 +19,7 @@ import helpers
 class Reduced:
     """
     Object of Analysis of Neptune plus LA-MC-ICPMS data files in Boron analysis.
-
-    Parametres:
-    ----------
-
-    rawfile : str
-        name / path of the rawfile from the Neptune. If None, automatically use
-        Tk filedialog to choose the files.
-    logfile : str
-        Same as the rawfile but for the laser log.
-    analyte : str
-        Default is boron, but barium can be used as well
-
-    Attributes:
-    -----------
-
-    directory : str
-        Directory where the raw and log files are
-    lindata : DataFrame
-        linearised data from the blocky raw file
     """
-    
     def __init__(self, rawfile=None, logfile=None, analyte=None):
 
         self.rawfile = rawfile
