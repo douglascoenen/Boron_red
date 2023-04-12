@@ -1,7 +1,9 @@
 # Boron_red
 ## LA-MC-ICPMS boron isotope reduction script
 
-**Disclaimer** : It only work with *Neptune plus* files and *Geostar* laser log files.
+**Disclaimer** : It only work with *Neptune plus* files and *Geostar* laser log files. This script will look for very specific columns and details of the files produced by these programs.
+
+If needs be, I can make the code less rigid to fit other machines. Just contact me.
 
 Methodology outlined in:
 

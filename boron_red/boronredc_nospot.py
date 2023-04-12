@@ -2,25 +2,30 @@ import os
 import warnings
 import re
 import pickle
-import tkinter as tk
 import time
-from tkinter import filedialog as fd
+
+import scipy
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Cursor
 from tqdm import tqdm
-import scipy
 import uncertainties as unc
 from uncertainties import unumpy as unp
 # File containing useful redundant functions
 import helpers
 
+try:
+    import tkinter as tk
+    from tkinter import filedialog as fd
+except ModuleNotFoundError:
+    print("You do not have Tkinter installed, you cannot use the GUI :/")
+
 class Reduced:
     """
     Object of Analysis of Neptune plus LA-MC-ICPMS data files in Boron analysis.
     """
-    def __init__(self, rawfile=None, logfile=None, analyte=None):
+    def __init__(self, rawfile=None, logfile=None):
 
         self.rawfile = rawfile
         self.logfile = logfile
