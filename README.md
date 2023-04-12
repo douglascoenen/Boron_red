@@ -5,9 +5,9 @@
 
 Methodology outlined in:
 
-==Evans, Gerdes, Coenen, Marschall, & Mueller (2021) Accurate correction for the matrix 
+*Evans, Gerdes, Coenen, Marschall, & Mueller (2021) Accurate correction for the matrix 
 interference on laser ablation MC-ICPMS boron isotope measurements in CaCO3 and s
-ilicate matrices. JAAS 36:1607.==
+ilicate matrices. JAAS 36:1607.*
 
 (doi: 10.1039/d1ja00073j)
 
