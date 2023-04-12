@@ -16,7 +16,8 @@ ilicate matrices. JAAS 36:1607.*
 This code stemmed from David Evans original version in Matlab: (https://github.com/dbjevans/LA_d11B). Go check it out!
 Although these two script are using the same methodology, there lie a slight difference of less than 0.1‰. 
 
-The Python version uses a OO approach, and is thus best used in an interactive environment (e.g. Jupyter Notebook, IPython console, ...)
+The Python version uses a OO approach, and is thus best used in an interactive environment (e.g. Jupyter Notebook, IPython console, ...).
+You can use it as a standalone script.
 
 Here is a short outline of the steps taken by the script:
 

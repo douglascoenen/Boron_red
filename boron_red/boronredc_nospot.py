@@ -1494,5 +1494,5 @@ if __name__ == "__main__":
     red.bg_sub()
     red.nistcor()
     red.ca_cor()
-    # red.savedata()
+    red.savedata()
 
