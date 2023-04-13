@@ -636,13 +636,13 @@ class Reduced:
         
         if outlier:
             zs = abs(scipy.stats.zscore(nistvals))  # Calculate the zscore of the nists
-            if (zs > 2).any():  # If there are 2SD outliers
-                print(f"There are at {len(zs[zs > 2])} outliers")
+            if (zs > 3).any():  # If there are 2SD outliers
+                print(f"There are {len(zs[zs > 2])} NIST outliers")
                 outloc = np.where(zs>2)[0]
                 nistloc = np.delete(nistloc, outloc)
                 nistvals = np.delete(nistvals, outloc)
             else:
-                print("No outliers")
+                print("No NIST outliers")
         
 
         # =====================================================================
@@ -723,16 +723,37 @@ class Reduced:
         # Our way of calculating SE in permil is 1:1 with Jie's
         self.dataOvert["r2se"] = (self.dataOvert["11/10B2se"]/self.dataOvert["11/10B"])*1000
         # =============================================================================
-        # B/Ca calculation by carbonate standard bracketing
+        # B/Ca calculate by carbonate polynomial fitting through session
         # =============================================================================
-        # B/Ca estimates
-        # Follow Babila et al. 2021 (Sci. Adv.) by bracketing JCt
         
         std_bca_values = {"jct": unc.ufloat(191, 9),  # umol/mol from Hathorne 2013 G3, 2SD
                           "jcp": unc.ufloat(460, 23),  # umol/mol from Hathorne 2013 G3, 2SD
                           "macs": unc.ufloat(56, 2)}  # umol/mol from Standish 2019 RCMS, 2SD
-        bca_res_df = {}
+        # Create a separate DataFrame for B/Ca, too many columns, will render the main
+        # df too crowded.
+        bca_res_df = pd.DataFrame()
+        bca_res_df["sample"] = self.dataOvert["sample"]
+        if poly: # Use a polynomial fit through the standards 10.035
+           for i, std in enumerate(std_bca_values): # Loop through each standard
+                std_val = self.dataOvert[self.dataOvert["sample"].str.match(std)]
+                std_loc = std_val.index
+                order = 5  # Order of the polynomial
+                popt, pcov = scipy.optimize.curve_fit(helpers.polynomfit, std_loc, std_val["11/10.035"],
+                                                      p0=[0]*order)
+                session_pol = helpers.polynomfit(np.array(self.dataOvert.index),*popt)
+                bca_fac = std_bca_values[std] / session_pol
+                b11_10u = unp.uarray(self.dataOvert["11/10.035"], self.dataOvert["11/10.0352se"])
+                bca_pol = b11_10u * bca_fac
+                bca_poln = unp.nominal_values(bca_pol)
+                bca_polu = unp.std_devs(bca_pol)
+                bca_res_df["B/Ca_pol_" + std] = bca_poln
+                bca_res_df["B/Ca_pol_" + std + "_2se"] = bca_polu
         
+        # =============================================================================
+        # B/Ca calculation by carbonate standard bracketing
+        # =============================================================================
+        # B/Ca estimates
+        # Follow Babila et al. 2021 (Sci. Adv.) by bracketing JCt
         for i, std in enumerate(std_bca_values):
             std_loc = self.dataOvert[self.dataOvert["sample"].str.match(std)].index
             casig = self.dataOvert["11/10.035"].values   # Extract 11/10.035 values
@@ -740,7 +761,6 @@ class Reduced:
             bcas = np.zeros_like(bvals)   # Empty B/Ca array
             bcau = np.zeros_like(bvals)   # Empty B/Ca uncertainty array
         
-            linreg = False  # Change between linear interpolation and average of two JCt values
             for i in range(len(std_loc) - 1):
                 # B/Ca values in between the two JCt
                 # bcasamp = casig[std_loc[i]+1:std_loc[i+1]]
@@ -750,73 +770,29 @@ class Reduced:
                 # B/Ca values of the first and second JCt of the bracket
                 bca_std_1 = casig[std_loc[i]]
                 bca_std_2 = casig[std_loc[i+1]]
-                
-                if linreg:  # Linearly interpolate between the two JCts
-                    m, c = np.polyfit([std_loc[i], std_loc[i+1]], [bca_std_1, bca_std_2], 1)
-                    x = np.arange(std_loc[i]+1, std_loc[i+1])
-                    bca_jct_val = x*m + c
-                else:    # Make a simple average
-                    bca_jct_val = np.average((bca_std_1, bca_std_2))
+
+                bca_jct_val = np.average((bca_std_1, bca_std_2))
                     
                 stdval = std_bca_values[std]
                 bca_values = (bca_u/ bca_jct_val) * stdval
                 bcas[std_loc[i]+1:std_loc[i+1]] = unp.nominal_values(bca_values)
                 bcau[std_loc[i]+1:std_loc[i+1]] = unp.std_devs(bca_values)
-                
-        
-        
-        standard_label = "jct"
-        std_loc = [i for i, v in enumerate(self.dataOvert["sample"].str.lower())
-                   if re.findall(standard_label, v)]
-        
-        casig = self.dataOvert["11/10.035"].values   # Extract 11/10.035 values
-        casigse = self.dataOvert["11/10.0352se"].values   # Extract 11/10.035 values 2SE
-        bcas = np.zeros_like(bvals)   # Empty B/Ca array
-        bcau = np.zeros_like(bvals)   # Empty B/Ca uncertainty array
-        
-        linreg = True  # Change between linear interpolation and average of two JCt values
-        for i in range(len(std_loc) - 1):
-            # B/Ca values in between the two JCt
-            # bcasamp = casig[std_loc[i]+1:std_loc[i+1]]
-            # bcasesamp = casigse[std_loc[i]+1:std_loc[i+1]]
-            bca_u = unp.uarray(casig[std_loc[i]+1:std_loc[i+1]],        # 11/10.035 nominal value  
-                               casigse[std_loc[i]+1:std_loc[i+1]])      # 11/10.035 std devs
-            # B/Ca values of the first and second JCt of the bracket
-            bca_std_1 = casig[std_loc[i]]
-            bca_std_2 = casig[std_loc[i+1]]
             
-            if linreg:  # Linearly interpolate between the two JCts
-                m, c = np.polyfit([std_loc[i], std_loc[i+1]], [bca_std_1, bca_std_2], 1)
-                x = np.arange(std_loc[i]+1, std_loc[i+1])
-                bca_jct_val = x*m + c
-            else:    # Make a simple average
-                bca_jct_val = np.average((bca_std_1, bca_std_2))
-                
-            stdval = std_bca_values[standard_label]
-            # bca_values = (bcasamp / bca_jct_val) * stdval
-            bca_values = (bca_u/ bca_jct_val) * stdval
-            # print(bca_values)
-            # print(type(bca_values))
-            # print(unp.nominal_values(bca_values))
-            bcas[std_loc[i]+1:std_loc[i+1]] = unp.nominal_values(bca_values)
-            bcau[std_loc[i]+1:std_loc[i+1]] = unp.std_devs(bca_values)
-                  
-        self.dataOvert["B/Ca"] = bcas   # Save results to the main dataset.
+            bca_res_df["B/Ca_bra_" + std] = bcas
+            bca_res_df["B/Ca_bra_" + std + "_2se"] = bcau
+        
+        self.dataOvert["B/Ca"] = bcas # Save results to the main dataset.
         self.dataOvert["B/Ca_2sd"] = bcau
+
         # 2nd method for calculating B/Ca, use the [B] calibrated using NIST612
         # Because NIST612 is more homogeneous in terms of []
         # Calculate offset between [B] measured and reported [B] in JCt
         # Apply this offset either in bracketed form or average all and use it as is
-        
         # jct [B] = 23
         # jcp [B] = 50 ug/g
         # macs3 [B] = 8.2
-        jct = self.dataOvert.loc[self.dataOvert["sample"].str.match("jct")]
-        jctoff = jct["[B]"] - 23 
-        
-        # Calculate the nist drift
-        firstpair = np.mean( self.dataOvert["d11B"][nistblocks[0]])
-        lastpair = np.mean( self.dataOvert["d11B"][nistblocks[-1]])
+        # jct = self.dataOvert.loc[self.dataOvert["sample"].str.match("jct")]
+        # jctoff = jct["[B]"] - 23 
         
         # =============================================================================
         #         # Plot the changes of nist values through the analysis.
@@ -883,7 +859,7 @@ class Reduced:
         plt.legend()
         plt.xlabel(r"11/10.035 $\propto$ B/Ca")
         plt.ylabel("[B] (ppm)")
-        plt.xlim(0,1600)
+        plt.xlim(0,1800)
         plt.savefig("Boron_concentration_plot.pdf")
         plt.show()
         
@@ -1486,8 +1462,8 @@ if __name__ == "__main__":
     
     red = Reduced()
     red.logtime(True)
-    red.bg_sub()
-    red.nistcor()
-    red.ca_cor()
-    red.savedata()
+    # red.bg_sub()
+    # red.nistcor()
+    # red.ca_cor()
+    # red.savedata()
 
