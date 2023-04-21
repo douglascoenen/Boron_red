@@ -160,7 +160,8 @@ class Reduced:
                 self.rawlog = pd.read_csv(self.logfile)
 
         self.spotsize()  # Get the different spotsizes
-
+        print(f"\n\nThis session has the following spotsizes: {self.spots} um\n\n")
+        
         # Transform the Timestamp in log file as Unix timestamp
         self.rawlog["Timestamp"] = pd.to_datetime(self.rawlog.Timestamp)
         self.rawlog["Time"] = pd.to_datetime(self.rawlog.Timestamp).values.astype(np.int64)
@@ -306,7 +307,7 @@ class Reduced:
         # but it is in numpy indeces and we try to get the pandas DataFrame index
         # to match the data, so you need to apply this corrections
         
-        print("The time lag between the two machines is: {}s\n".format(timelag/1e9),
+        print("The time lag between the two machines is: {}s\n".format(round(timelag/1e9, 3)),
               flush=True)
 
         # Correct the analysis start and end by adding the machine timelag
