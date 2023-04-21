@@ -138,8 +138,6 @@ class Reduced:
             except ValueError: # Correct the wrong format
                 self.rawlog.loc[i, "Spot Size (um)"] = re.findall("(\d{1,})",
                                                                   self.rawlog["Spot Size (um)"][i])[0]
-        # Make a list of the different spot sizes using the "set" function
-        self.spots = list(set(self.rawlog["Spot Size (um)"]))
 
     def logtime(self, check=False, manstart=False):
         """Convert the time in the file into real time and create data dictionary."""
@@ -159,9 +157,8 @@ class Reduced:
             else:
                 self.rawlog = pd.read_csv(self.logfile)
 
-        self.spotsize()  # Get the different spotsizes
-        print(f"\n\nThis session has the following spotsizes: {self.spots} um\n\n")
-        
+        self.spotsize()  # Fix the wrong spotsizes in laser log
+                
         # Transform the Timestamp in log file as Unix timestamp
         self.rawlog["Timestamp"] = pd.to_datetime(self.rawlog.Timestamp)
         self.rawlog["Time"] = pd.to_datetime(self.rawlog.Timestamp).values.astype(np.int64)
@@ -192,6 +189,15 @@ class Reduced:
                 timela_start.append(self.rawlog.iloc[i+3, -1])
                 timela_end.append(self.rawlog.iloc[i+4, -1])
 
+        self.spotsizes = np.array(self.spotsizes)        
+        self.spots = list(set(self.spotsizes))
+        
+        print(f"\n\nThis session has the following spotsizes:\n")
+        for s in self.spots:
+            n = len(self.spotsizes[self.spotsizes == s])
+            print(f"\t \t {s} um : {n} spots\n")
+            
+         
         data = self.lindata
         try:
             # If the timestamp is already in Unix timestamp
