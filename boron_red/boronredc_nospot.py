@@ -846,25 +846,27 @@ class Reduced:
     def conc_plot(self, save=False):
         """Plot B concentration of all the samples."""
         plt.figure()
-        plt.scatter(self.dataOvert["11/10.035"], self.dataOvert["[B]"], ec="k",
+        # plt.scatter(self.dataOvert["11/10.035"], self.dataOvert["[B]"], ec="k",
+                    # label="Samples", alpha=0.7)
+        plt.scatter(self.dataOvert["11/10.035"], self.dataOvert["11B"], ec="k",
                     label="Samples", alpha=0.7)
                 
         for s in self.stds:
             if s == "nist612":
                 continue
             std_data = self.dataOvert.loc[self.dataOvert["sample"].str.match(s)]
-            plt.scatter(std_data["11/10.035"], std_data["[B]"], ec="k", label=s,
-                        s=45)
+            # plt.scatter(std_data["11/10.035"], std_data["[B]"], ec="k", label=s, s=45)
+            plt.scatter(std_data["11/10.035"], std_data["11B"], ec="k", label=s, s=45)
             
         plt.legend()
         plt.xlabel(r"11/10.035 $\propto$ B/Ca")
-        plt.ylabel("[B] (ppm)")
+        plt.ylabel(r"$^{11}$B (v)")
         plt.xlim(0,1800)
         plt.savefig("Boron_concentration_plot.pdf")
         plt.show()
         
 
-    def ca_cor(self, outlier=False, save=True, ca9=False, yel=False,
+    def ca_cor(self, outlier=True, save=True, manout=False, ca9=False, yel=False,
                spot=False, flu=False):
         """
         Correction of the Ca matrix effect.
@@ -971,7 +973,7 @@ class Reduced:
             raise ValueError("There are no Jcp, Jct or MACS-3 in this "
                              "spot size, so there is no correction.")
 
-        if outlier:
+        if manout:
             print("Manual outlier removal")
             fig, ax = plt.subplots()
             
@@ -1017,7 +1019,7 @@ class Reduced:
         try:
             ### Fit the non-linear regression with the filtered data
             popt, pcov = scipy.optimize.curve_fit(helpers.exp_fun, mxc, myc, p0=[-2000, -1, 1],
-                                                  absolute_sigma=True, maxfev=10000)
+                                                  absolute_sigma=True, maxfev=int(1e6))
         except RuntimeError:
             warnings.warn(f"Could not converge the non linear regression."\
                   " This might be due to a great degree of scatter / outliers,"\
@@ -1135,73 +1137,76 @@ class Reduced:
         nom = unp.nominal_values(py)
         std = unp.std_devs(py)    
         
-        # Calculate residuals
-        pred = helpers.exp_fun(mxc, *npars)
-        res = myc - pred
-        mres = []
-        # Values to be fitted: Average of 11B/10.035 vs average 2SE for that range of B/Ca values
-        fx, fy = np.zeros(len(stds)), np.zeros(len(stds))
-        for i, v in enumerate(stds):
-            fx[i] = np.mean(mx[i])
-            loc = std_locs[v]
-            fy[i] = self.dataOvert.loc[loc, "r2se"].mean()
+        if outlier:
+            # Automatically remove outliers
+            # Calculate residuals
+            pred = helpers.exp_fun(mxc, *npars)
+            res = myc - pred
+            mres = []
+            # Values to be fitted: Average of 11B/10.035 vs average 2SE for that range of B/Ca values
+            fx, fy = np.zeros(len(stds)), np.zeros(len(stds))
+            for i, v in enumerate(stds):
+                fx[i] = np.mean(mx[i])
+                loc = std_locs[v]
+                fy[i] = self.dataOvert.loc[loc, "r2se"].mean()
             
-        # Fit the an exponential curve through the average uncertainty for a specific
-        # standard. The lower the B/Ca, the higher the d11B uncertainty.
-        res_popt, res_pcov = scipy.optimize.curve_fit(helpers.exp_fun, fx, fy, p0=[-2000, -1, 1],
-                                                      absolute_sigma=True, maxfev=10000)
-        # The fit was 
-        out_v = helpers.exp_fun(mxc, *res_popt)
-        # Filter out the 2SD of the fit
-        fil_mask = abs(res)<out_v*2
-        out_mask = abs(res)>out_v*2
-        
-        mxc_fil = mxc[fil_mask]
-        res_fil = res[fil_mask]
-        mxc_out = mxc[out_mask]
-        res_out = res[out_mask]
-        
-        # Plot the residuals and the outliers
-        plt.figure()
-        res_px = np.linspace(min(mxc), max(mxc))
-        for i in range(len(mx)):
-            pred = helpers.exp_fun(mx[i], *npars)
-            res = my[i] - pred
-            mres.append(np.mean(res))
-            plt.errorbar(mx[i], res, my2se[i], mx2se[i], fmt="none", alpha=0.6, c="gray", zorder=1)
-            plt.scatter(mx[i], res, ec="k", zorder=2)
-            plt.axhline(0, ls="--", c="k")
-        
-        # Plot the outliers on top
-        plt.plot(mxc_out, res_out, "ro")
-        # plot the residual SD and 2SD
-        plt.plot(res_px, helpers.exp_fun(res_px, *res_popt), c="r", zorder=3, ls="--")
-        plt.plot(res_px, -helpers.exp_fun(res_px, *res_popt), c="r", zorder=3, ls="--")
-        plt.plot(res_px, 2*helpers.exp_fun(res_px, *res_popt), c="r", zorder=3, ls=":")
-        plt.plot(res_px, -2*helpers.exp_fun(res_px, *res_popt), c="r", zorder=3, ls=":")
-        # Axis labelling
-        plt.ylabel(r"$\Delta \delta ^{11}$B residuals")
-        plt.xlabel(r"$^{11}$B/10.035")
-        plt.title("Outlier removal based on residuals from the fit")
-        if save:
-            plt.savefig(f"{self.directory}/Ca_cor_outlier_removal.png", dpi=200)
-        ########
-        # Refit the filtered data
-        mxc = mxc[fil_mask]
-        myc = myc[fil_mask]
+            # Fit the an exponential curve through the average uncertainty for a specific
+            # standard. The lower the B/Ca, the higher the d11B uncertainty.
+            res_popt, res_pcov = scipy.optimize.curve_fit(helpers.exp_fun, fx, fy, p0=[-2000, -1, -1],
+                                                          absolute_sigma=True, maxfev=int(1e6))
+            # The fit was 
+            out_v = helpers.exp_fun(mxc, *res_popt)
+            # Filter out the 2SD of the fit
+            fil_mask = abs(res)<out_v*2
+            out_mask = abs(res)>out_v*2
+            
+            mxc_fil = mxc[fil_mask]
+            res_fil = res[fil_mask]
+            mxc_out = mxc[out_mask]
+            res_out = res[out_mask]
+            
+            # Plot the residuals and the outliers
+            plt.figure()
+            res_px = np.linspace(min(mxc), max(mxc))
+            for i in range(len(mx)):
+                pred = helpers.exp_fun(mx[i], *npars)
+                res = my[i] - pred
+                mres.append(np.mean(res))
+                plt.errorbar(mx[i], res, my2se[i], mx2se[i], fmt="none", alpha=0.6, c="gray", zorder=1)
+                plt.scatter(mx[i], res, ec="k", zorder=2)
+                plt.axhline(0, ls="--", c="k")
+            
+            # Plot the outliers on top
+            plt.plot(mxc_out, res_out, "ro")
+            # plot the residual SD and 2SD
+            plt.plot(res_px, helpers.exp_fun(res_px, *res_popt), c="r", zorder=3, ls="--")
+            plt.plot(res_px, -helpers.exp_fun(res_px, *res_popt), c="r", zorder=3, ls="--")
+            plt.plot(res_px, 2*helpers.exp_fun(res_px, *res_popt), c="r", zorder=3, ls=":")
+            plt.plot(res_px, -2*helpers.exp_fun(res_px, *res_popt), c="r", zorder=3, ls=":")
+            # Axis labelling
+            plt.ylabel(r"$\Delta \delta ^{11}$B residuals")
+            plt.xlabel(r"$^{11}$B/10.035")
+            plt.title("Outlier removal based on residuals from the fit")
+            if save:
+                plt.savefig(f"{self.directory}/Ca_cor_outlier_removal.png", dpi=200)
+            ########
+            # Refit the filtered data
+            mxc = mxc[fil_mask]
+            myc = myc[fil_mask]
         
         popt, pcov = scipy.optimize.curve_fit(helpers.exp_fun, mxc, myc, p0=[-2000, -1, 1],
                                               absolute_sigma=True, maxfev=10000)
         pars = unc.correlated_values(popt, pcov)
         npars = unp.nominal_values(pars)
-
+        upars = unp.std_devs(pars)
+        
         # plot data 
         fig, ax = plt.subplots()
         for i in range(len(mx)):
             plt.errorbar(mx[i], my[i], my2se[i], mx2se[i], fmt="none", color="k", alpha=0.6)
             plt.scatter(mx[i], my[i], label=stdfound[i], zorder=2, edgecolor="k")
         
-        if outlier:
+        if manout:
             if out.any():
                 plt.scatter(out[:, 0], out[:, 1], facecolor="r", ec="r", s=50, zorder=3)
         # Calculate the prediction bands 95% confidence
@@ -1252,6 +1257,11 @@ class Reduced:
             
         # Save the calibration d11B by substracting the difference from true
         self.dataOvert["cald11B"] = self.dataOvert["d11B"] - self.dataOvert["Dd11B"]
+        
+        # Save the regression parameters
+        reg_pop = pd.DataFrame(list(zip(npars, upars)), columns=["nom", "sd"],
+                               index=["a", "b", "c"])
+        reg_pop.to_csv(f"{self.directory}/Dd11B_regression_coefs.csv")
         
         if save:
             if yel:
