@@ -1,5 +1,6 @@
 """Helper functions to declutter the main file."""
 import numpy as np
+import pandas as pd
 import scipy 
 import scipy.stats as stats
 import matplotlib.pyplot as plt
@@ -242,6 +243,18 @@ def DFFITS():
     # Try to program DFFITS -> simples than Cooks distance
     # Cook's distance and DFFITS are the same conceptually
     return None
+
+def truncV(h,r,R,s):
+    if s == "s":
+        """Truncated pyramid V = (1/3)* h * (r² + r * R + R²)"""
+        return (1/3)*h*(r**2 + r*R + r**2)
+    elif s == "c":
+        """Truncated cone V = (1/3) * π * h * (r² + r * R + R²)"""
+        return (1/3)*np.pi*h*(r**2 + r*R + R**2)
+
+def get_spot(s):
+    """Read in the spot size list and return the shape (s or c) and surface area"""
+    return pd.read_csv("spot_size_list.csv", index_col="spot_size").loc[s]
 
 
 def an_plot(sig, i, n, sn):

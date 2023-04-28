@@ -20,6 +20,12 @@ try:
     from tkinter import filedialog as fd
 except ModuleNotFoundError:
     print("You do not have Tkinter installed, you cannot use the GUI :/")
+"""
+# Feature addition:
+    - Saving key parametres of session: Sensitivity, Backgrounds, Precision
+    
+"""
+
 
 class Reduced:
     """
@@ -196,7 +202,10 @@ class Reduced:
         for s in self.spots:
             n = len(self.spotsizes[self.spotsizes == s])
             print(f"\t \t {s} um : {n} spots\n")
-            
+        
+        meantime = round(np.mean(np.array(timela_end) - np.array(timela_start))/1e9)
+
+        print(f"\nThe analysis time is ~ {meantime} seconds\n")
          
         data = self.lindata
         try:
@@ -319,7 +328,7 @@ class Reduced:
         # Correct the analysis start and end by adding the machine timelag
         anstart = timela_start - timelag
         anend = timela_end - timelag
- 
+        
         #######################################################################
         # Now separate the data into cells per analysis, with the signal,
         # background before and after.
@@ -704,11 +713,51 @@ class Reduced:
             # boron concentration in NIST612
             bconcs[nistblocks[i][-1]+1:nistblocks[i+1][0]] = bcest * 34.3
 
-
         # Put the NIST values back.
         # Since the correction only applies to what is in between the brackets,
         # The "corrected" array has 0 where the NISTS are.
         # corrected[np.where(corrected == 0)] = bvals[np.where(corrected == 0)]
+        
+        # TODO Record the sensitivity: 
+        # =============================================================================
+        # Calculate the sensitivity of the session. Useful ion yield.
+        # =============================================================================
+        flu_check = self.dataOvert[self.dataOvert["fluence"].between(5, 7)]
+        if len(flu_check) == len(self.dataOvert):
+            print("That will work juicily")
+        else:
+            print("The sensitivity calculations will not work because you have"
+                  " some analysis with a fluence outside of the calibration.")
+        
+        # Loop through each spot
+        for s in self.spots:
+            spot_dataovert = self.dataOvert[self.dataOvert["spotsize"] == s] # Filter for spot
+            nists = spot_dataovert[spot_dataovert["sample"].str.match("nist")]# Get the nists
+            # Add 11B and 10B to get the total boron ion detection.
+            bT = nists["11B"] + nists["10B"]
+            # Calculate basic sensitivity
+            sens = np.mean(bT)*1e3 / 34.3
+            print(f"\n \tThe sensitivity at {s} \N{GREEK SMALL LETTER MU}m is: "
+                  f"{sens:.2f} mV / \N{GREEK SMALL LETTER MU}g/g")
+            # Convert measured voltage to cps using the elementary charge value
+            cps = (bT/1e11)/1.6e-19  # 11B voltage / resistance (10^11 ohm) / elementary charge
+            spot_char = helpers.get_spot(s) # Get spot characteristics
+            # V = depth * surface area. => Laser ablation is not a perfect cylinder
+            # usually, ~10% lower bottom surface that surface area.
+            # Ablation rate (NIST612 ~ 0.182um / pulse) * 6Hz * 60s = Depth
+            ablation_V = helpers.truncV(60*6*0.182, s/2, s*0.9,  spot_char[0])  # in um3
+            # (NIST density: Hervig 2006)
+            mass_consumed= (ablation_V*1e-12 * 2.3)/60 # cm3 * g/cm3 / s => g/s  
+            # NIST 612 [B] = 34.3 ug/g
+            B_mass_s = mass_consumed * 34.3/1e6  # g/s * g/g => g/s
+            B_atoms = (B_mass_s / 10.81) * 6.02214076e23  # g / g/mol * atoms/mol => atoms / s 
+            # Useful ion yield: Hervig et al. 2006 (Chem. Geol.)
+            uiy = cps / B_atoms
+            
+            uiy_m = np.mean(cps / B_atoms)*100 # Mean and percentages
+            uiy_sd = np.std(cps / B_atoms)*100 # SD and percentages
+            print(f"\tThe useful ion yield for this spot is : {uiy_m:0.4f}% +- {2*uiy_sd:0.4f}")
+                
         # =============================================================================
         # Polynomial fitting through the nist trial -> like Jie        
         # =============================================================================
@@ -935,6 +984,7 @@ class Reduced:
                 print(f"Did not find the standard: {stds[i]}")
                 continue  # If did not find the standard ignore
             
+            # TODO Remove 3SD outliers on d11B and 11/10.035?
             print(f"{i} standard:")
             # Remove any sample that has negative 11/10.035 (or 9.979)
             above_zero = loc[np.where(bca[loc].values > 0)]
@@ -1264,6 +1314,9 @@ class Reduced:
             
         # Save the calibration d11B by substracting the difference from true
         self.dataOvert["cald11B"] = self.dataOvert["d11B"] - self.dataOvert["Dd11B"]
+        
+        # TODO: Export as dictionary (json) or something along with other stats
+        # about the session, like secondary standard values, solution / LA gradient.
         
         # Save the regression parameters
         reg_pop = pd.DataFrame(list(zip(npars, upars)), columns=["nom", "sd"],
