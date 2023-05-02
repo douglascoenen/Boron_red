@@ -3,6 +3,7 @@ import warnings
 import re
 import pickle
 import time
+import json
 
 import scipy
 import numpy as np
@@ -198,9 +199,11 @@ class Reduced:
         self.spotsizes = np.array(self.spotsizes)        
         self.spots = list(set(self.spotsizes))
         
+        self.cal_params = {}
         print(f"\n\nThis session has the following spotsizes:\n")
         for s in self.spots:
             n = len(self.spotsizes[self.spotsizes == s])
+            self.cal_params[int(s)] = {"n_analysis": n}
             print(f"\t \t {s} um : {n} spots\n")
         
         meantime = round(np.mean(np.array(timela_end) - np.array(timela_start))/1e9)
@@ -621,6 +624,8 @@ class Reduced:
         # ax.set_yscale("log")
         ax.legend()
         plt.savefig(self.directory + "/background_drift.png")
+        ###
+        
 
     def nistcor(self, save=True, poly=False):
         """
@@ -630,8 +635,6 @@ class Reduced:
         and create nist blocks. The blocks are then averaged and used to correct
         the samples between the two brackets.
         """
-        # TODO Record fractination factor. As f of time ? 
-        # TODO calculate sensitivity of NIST, as f of time.
         nistloc = self.dataOvert[self.dataOvert["sample"].str.match("nist")].index
         # Transfer the 11/10 ratios into a numpy array because it is easier to deal with
         bvals = self.dataOvert["11/10B"].values
@@ -724,7 +727,8 @@ class Reduced:
         # =============================================================================
         flu_check = self.dataOvert[self.dataOvert["fluence"].between(5, 7)]
         if len(flu_check) == len(self.dataOvert):
-            print("That will work juicily")
+            print("The analysis were done at ~6 J/cm2. The NIST calibrated useful"
+                  " ion yield will be accurate.")
         else:
             print("The sensitivity calculations will not work because you have"
                   " some analysis with a fluence outside of the calibration.")
@@ -757,7 +761,16 @@ class Reduced:
             uiy_m = np.mean(cps / B_atoms)*100 # Mean and percentages
             uiy_sd = np.std(cps / B_atoms)*100 # SD and percentages
             print(f"\tThe useful ion yield for this spot is : {uiy_m:0.4f}% +- {2*uiy_sd:0.4f}")
-                
+            # save backgrounds
+            bgs = [self.datadi[i]["bg"] for i in spot_dataovert.index]
+            bgs_df = pd.DataFrame(bgs)
+            ## Save sensitivity
+            params_tosave = {"sensitivity": sens, "uiy": uiy_m, "uiy_sd": uiy_sd,
+                             "background": list(bgs_df.mean())}
+            self.cal_params[s].update(params_tosave)
+        
+        # Save the paramters as a JSON file.
+        json.dump(self.cal_params, open(self.directory + "/session_parameters.json", "w"))
         # =============================================================================
         # Polynomial fitting through the nist trial -> like Jie        
         # =============================================================================
